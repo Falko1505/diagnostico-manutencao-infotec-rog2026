@@ -153,7 +153,11 @@ async function sendPayload(payload){
   return r.json().catch(()=>({ok:true}));
 }
 async function syncPending(){
-  if(syncInProgress||!navigator.onLine)return;
+  if(syncInProgress)return;
+  if(!navigator.onLine){
+    await updateConnectionStatus();
+    return;
+  }
   syncInProgress=true;
   updateConnectionStatus();
   let q=[];
@@ -284,6 +288,7 @@ async function submitLead(){
   }catch(e){
     if(window.InfotecStore)try{await window.InfotecStore.markPending(payload.diagnostic_id,e)}catch(ignore){}
   }
+  await updateConnectionStatus();
   try{sessionStorage.setItem("infotec_current_result",JSON.stringify(payload))}catch(e){}
   renderResult(sent);
 }
