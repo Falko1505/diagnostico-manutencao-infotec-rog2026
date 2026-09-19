@@ -47,11 +47,13 @@ button{-webkit-tap-highlight-color:transparent}
 .shell{width:min(100%,720px);position:relative;z-index:1}
 .brandbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;color:#fff}
 .logo-chip{
-  display:flex;align-items:baseline;gap:8px;background:#fff;color:var(--navy-900);
-  padding:10px 16px;border-radius:12px;box-shadow:0 8px 22px rgba(0,20,60,.22);
+  position:relative;width:174px;height:68px;flex:0 0 auto;overflow:hidden;
+  background:#fff;border-radius:12px;box-shadow:0 8px 22px rgba(0,20,60,.22);
 }
-.logo-word{font-size:26px;font-weight:800;letter-spacing:-1.2px}
-.logo-sub{font-size:9px;font-weight:800;letter-spacing:1.6px;color:var(--orange)}
+.brand-logo{
+  position:absolute;left:7px;top:50%;display:block;width:160px;height:auto;
+  transform:translateY(-50%);
+}
 .event-tag{font-size:12px;text-transform:uppercase;letter-spacing:1.4px;font-weight:600;opacity:.88;text-align:right}
 .card{
   background:#fff;border-radius:20px;padding:40px 36px;box-shadow:var(--shadow);
@@ -131,7 +133,8 @@ input:focus,select:focus{border-color:var(--navy-700);box-shadow:0 0 0 3px rgba(
 @media(max-width:620px){
   body{padding:18px 14px;align-items:flex-start}
   .brandbar{margin-top:5px}
-  .logo-word{font-size:23px}
+  .logo-chip{width:156px;height:62px;border-radius:10px}
+  .brand-logo{left:6px;width:144px}
   .card{padding:28px 20px;border-radius:17px}
   h1{font-size:25px}
   h2{font-size:20px}
