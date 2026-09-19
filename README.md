@@ -1,0 +1,1 @@
+# diagnostico-manutencao-infotec-rog2026
