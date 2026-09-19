@@ -246,7 +246,9 @@ function renderResult(sent){
     <div class="reco">${profile.text}</div>
     <div class="${sent?"status-box":"error-box"}">${sent
       ? "Pronto: seu diagnóstico foi registrado e o envio por e-mail foi solicitado."
-      : "Seu diagnóstico está salvo neste aparelho e será sincronizado automaticamente assim que a conexão estiver disponível."}</div>
+      : ((window.INFOTEC_CONFIG&&window.INFOTEC_CONFIG.submitEndpoint)
+          ? "Seu diagnóstico está salvo neste aparelho e será sincronizado automaticamente assim que a conexão estiver disponível."
+          : "Seu resultado foi calculado. A integração com RD Station e o envio por e-mail ainda estão em configuração nesta versão de teste.")}</div>
     <p class="lead" style="margin-bottom:16px">Você também pode abrir seu resultado completo agora e salvá-lo em PDF.</p>
     <a class="btn" href="${url}">Abrir resultado completo</a>
     <div class="btn-row">
