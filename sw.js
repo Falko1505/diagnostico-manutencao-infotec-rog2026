@@ -1,4 +1,4 @@
-const CACHE_NAME = "infotec-totem-v1";
+const CACHE_NAME = "infotec-totem-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
