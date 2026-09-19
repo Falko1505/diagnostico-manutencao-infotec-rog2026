@@ -5,7 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#003082">
   <meta name="robots" content="noindex,nofollow">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Diagnóstico de Maturidade em Manutenção | Infotec Brasil</title>
+  <meta name="description" content="Descubra o nível de maturidade da manutenção na sua operação em 8 perguntas e receba recomendações personalizadas da Infotec Brasil.">
+  <link rel="canonical" href="https://falko1505.github.io/diagnostico-manutencao-infotec-rog2026/">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="Infotec Brasil">
+  <meta property="og:title" content="Diagnóstico de Maturidade em Manutenção | Infotec Brasil">
+  <meta property="og:description" content="Descubra o nível da sua operação em 3 minutos. São 8 perguntas, 4 dimensões e um resultado personalizado.">
+  <meta property="og:url" content="https://falko1505.github.io/diagnostico-manutencao-infotec-rog2026/">
+  <meta property="og:image" content="https://falko1505.github.io/diagnostico-manutencao-infotec-rog2026/assets/og-diagnostico.png">
+  <meta property="og:image:secure_url" content="https://falko1505.github.io/diagnostico-manutencao-infotec-rog2026/assets/og-diagnostico.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Diagnóstico de Maturidade em Manutenção — Infotec Brasil — ROG.e 2026">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Diagnóstico de Maturidade em Manutenção | Infotec Brasil">
+  <meta name="twitter:description" content="Descubra o nível da sua operação em 3 minutos e receba recomendações personalizadas.">
+  <meta name="twitter:image" content="https://falko1505.github.io/diagnostico-manutencao-infotec-rog2026/assets/og-diagnostico.png">
+  <link rel="manifest" href="./manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -25,8 +46,12 @@
 
     <section class="card" id="app" aria-live="polite"></section>
     <p class="footer-note">Infotec Brasil — conectando pessoas, processos e inovação para impulsionar negócios.</p>
+    <div class="connection-status" id="connection-status" aria-live="polite">Verificando conexão…</div>
   </main>
 
-  <script src="./config.js"></script>\n  <script src="./app.js" defer></script>
+  <script src="./config.js"></script>
+  <script src="./storage.js"></script>
+  <script src="./pwa.js"></script>
+  <script src="./app.js" defer></script>
 </body>
 </html>
