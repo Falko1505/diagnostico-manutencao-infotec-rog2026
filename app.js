@@ -303,7 +303,15 @@ function renderResult(sent){
       : ((window.INFOTEC_CONFIG&&window.INFOTEC_CONFIG.submitEndpoint)
           ? "Seu diagnóstico está salvo neste totem. O RD Station e o e-mail serão atualizados automaticamente quando a conexão voltar."
           : "Seu resultado foi calculado. A integração com RD Station e o envio por e-mail ainda estão em configuração nesta versão de teste.")}</div>
-    <p class="lead" style="margin-bottom:16px">${KIOSK_MODE?"Você pode imprimir este resumo antes de liberar o totem para a próxima pessoa.":"Você também pode abrir seu resultado completo agora e salvá-lo em PDF."}</p>
+    ${KIOSK_MODE?`<section class="kiosk-handoff" aria-labelledby="kiosk-qr-title">
+      <div>
+        <div class="eyebrow">Resultado no celular</div>
+        <h3 id="kiosk-qr-title">Escaneie o QR Code deste atendimento</h3>
+        <p>Abra a câmera do celular conectado à internet. O link é exclusivo deste resultado e permite salvar o diagnóstico em PDF.</p>
+      </div>
+      <div class="result-qr" id="result-qr" aria-label="QR Code do resultado individual"></div>
+    </section>`:""}
+    <p class="lead" style="margin-bottom:16px">${KIOSK_MODE?"Depois do escaneamento, libere o totem para a próxima pessoa.":"Você também pode abrir seu resultado completo agora e salvá-lo em PDF."}</p>
     ${KIOSK_MODE?'<button class="btn" id="print-summary">Imprimir resultado</button>':`<a class="btn" href="${url}">Abrir resultado completo</a>`}
     <div class="btn-row ${KIOSK_MODE?"kiosk-actions":""}">
       ${KIOSK_MODE?"":'<button class="btn outline" id="share">Compartilhar</button>'}
@@ -319,6 +327,19 @@ function renderResult(sent){
     else{await navigator.clipboard?.writeText(url);alert("Link copiado.")};
   };
   if(KIOSK_MODE){
+    const qrTarget=document.getElementById("result-qr");
+    if(qrTarget&&window.QRCode){
+      new window.QRCode(qrTarget,{
+        text:url,
+        width:220,
+        height:220,
+        colorDark:"#003b83",
+        colorLight:"#ffffff",
+        correctLevel:window.QRCode.CorrectLevel.M
+      });
+    }else if(qrTarget){
+      qrTarget.innerHTML=`<a href="${url}">Abrir resultado no celular</a>`;
+    }
     let remaining=60;
     const label=document.getElementById("kiosk-reset");
     const tick=()=>{
