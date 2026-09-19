@@ -128,7 +128,9 @@ function removeQueued(id){
   }catch(e){}
 }
 async function sendPayload(payload){
-  const r=await fetch("/api/submit",{
+  const endpoint=(window.INFOTEC_CONFIG&&window.INFOTEC_CONFIG.submitEndpoint)||"";
+  if(!endpoint) throw new Error("Endpoint não configurado");
+  const r=await fetch(endpoint,{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({...payload,result_url:resultUrl(payload)})
