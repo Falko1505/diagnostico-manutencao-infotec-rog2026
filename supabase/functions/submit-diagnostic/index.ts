@@ -1,17 +1,30 @@
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS"
-};
-
 const env = (name: string, fallback = "") => Deno.env.get(name) || fallback;
+
+const defaultOrigin = "https://falko1505.github.io";
+
+function corsHeaders(req: Request) {
+  const allowedOrigin = env("ALLOWED_ORIGIN", defaultOrigin);
+  const requestOrigin = req.headers.get("origin") || "";
+  return {
+    "Access-Control-Allow-Origin": requestOrigin === allowedOrigin ? requestOrigin : allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin"
+  };
+}
 
 function safe(v: unknown) {
   return String(v ?? "").trim();
 }
 
-function field(target: Record<string, unknown>, envName: string, value: unknown) {
-  const key = env(envName);
+function html(v: unknown) {
+  return safe(v).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+  })[char] || char);
+}
+
+function field(target: Record<string, unknown>, envName: string, defaultKey: string, value: unknown) {
+  const key = env(envName, defaultKey);
   if (key && value !== undefined && value !== null && safe(value) !== "") target[key] = value;
 }
 
@@ -58,26 +71,32 @@ async function sendToRD(body: any) {
     name: lead.name,
     email: lead.email,
     personal_phone: lead.phone || undefined,
-    company: lead.company || undefined,
+    company_name: lead.company || undefined,
     job_title: lead.role || undefined,
-    traffic_source: env("RD_TRAFFIC_SOURCE", "diagnostico-manutencao-online")
+    traffic_source: env("RD_TRAFFIC_SOURCE", "ROG.e 2026 / Diagnóstico Online"),
+    tags: ["ROG.e 2026", "Diagnóstico de Manutenção"],
+    legal_bases: [{ category: "communications", type: "consent", status: "granted" }]
   };
 
-  field(payload, "RD_CF_SEGMENTO", lead.segment);
-  field(payload, "RD_CF_SCORE", String(body.total_score));
-  field(payload, "RD_CF_MATURIDADE", String(body.maturity_pct));
-  field(payload, "RD_CF_PERFIL", body.profile?.name);
-  field(payload, "RD_CF_DIAGNOSTIC_ID", body.diagnostic_id);
+  field(payload, "RD_CF_EMAIL_CORPORATIVO", "cf_e_mail_corporativo", lead.email);
+  field(payload, "RD_CF_SEGMENTO", "cf_segmento", lead.segment);
+  field(payload, "RD_CF_ORIGEM", "cf_origem", env("RD_TRAFFIC_SOURCE", "ROG.e 2026 / Diagnóstico Online"));
+  field(payload, "RD_CF_SCORE", "cf_diagnostico_rog_e_2026_score_total", Number(body.total_score));
+  field(payload, "RD_CF_MATURIDADE", "cf_diagnostico_rog_e_2026_maturidade", Number(body.maturity_pct));
+  field(payload, "RD_CF_PERFIL", "cf_diagnostico_rog_e_2026_perfil", body.profile?.name);
+  field(payload, "RD_CF_DIAGNOSTIC_ID", "cf_diagnostico_rog_e_2026_id", body.diagnostic_id);
+  field(payload, "RD_CF_CONSENTIMENTO", "cf_diagnostico_rog_e_2026_consentimento_lgpd", lead.consent ? "Sim — consentimento explícito no formulário" : "Não");
+  field(payload, "RD_CF_RESULT_URL", "cf_diagnostico_rog_e_2026_url_individual_do_resultado", body.result_url);
 
   const dims = Array.isArray(body.dimensions) ? body.dimensions : [];
-  field(payload, "RD_CF_DIM_1", dims[0]?.pct);
-  field(payload, "RD_CF_DIM_2", dims[1]?.pct);
-  field(payload, "RD_CF_DIM_3", dims[2]?.pct);
-  field(payload, "RD_CF_DIM_4", dims[3]?.pct);
+  field(payload, "RD_CF_DIM_1", "cf_diagnostico_rog_e_2026_estrategia_e_cultura", dims[0]?.pct);
+  field(payload, "RD_CF_DIM_2", "cf_diagnostico_rog_e_2026_planejamento_e_controle_da_manu", dims[1]?.pct);
+  field(payload, "RD_CF_DIM_3", "cf_diagnostico_rog_e_2026_dados_e_confiabilidade", dims[2]?.pct);
+  field(payload, "RD_CF_DIM_4", "cf_diagnostico_rog_e_2026_tecnologia_e_preditiva", dims[3]?.pct);
 
   const answers = Array.isArray(body.answers) ? body.answers : [];
   answers.slice(0, 8).forEach((a: any, i: number) => {
-    field(payload, `RD_CF_Q${i + 1}`, a.answer);
+    field(payload, `RD_CF_Q${i + 1}`, `cf_diagnostico_rog_e_2026_resposta_q${i + 1}`, a.answer);
   });
 
   const r = await fetch(`https://api.rd.services/platform/conversions?api_key=${encodeURIComponent(apiKey)}`, {
@@ -96,9 +115,9 @@ async function sendToRD(body: any) {
 
 function emailHtml(body: any) {
   const lead = body.lead || {};
-  const first = safe(lead.name).split(" ")[0] || "Olá";
-  const resultUrl = safe(body.result_url);
-  const profile = safe(body.profile?.name);
+  const first = html(safe(lead.name).split(" ")[0] || "Olá");
+  const resultUrl = html(body.result_url);
+  const profile = html(body.profile?.name);
   const pct = Number(body.maturity_pct || 0);
 
   return `
@@ -149,37 +168,43 @@ async function sendEmail(body: any) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const responseHeaders = corsHeaders(req);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: responseHeaders });
 
   try {
     if (req.method !== "POST") {
       return new Response(JSON.stringify({ error: "Method not allowed" }), {
-        status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" }
+        status: 405, headers: { ...responseHeaders, "Content-Type": "application/json" }
       });
     }
 
     const body = await req.json();
-    if (!body?.diagnostic_id || !body?.lead?.email || !Array.isArray(body?.answers) || body.answers.length !== 8) {
+    if (
+      !body?.diagnostic_id || !body?.lead?.email || body?.lead?.consent !== true ||
+      !Number.isInteger(body?.total_score) || body.total_score < 0 || body.total_score > 24 ||
+      !Number.isInteger(body?.maturity_pct) || body.maturity_pct < 0 || body.maturity_pct > 100 ||
+      !Array.isArray(body?.dimensions) || body.dimensions.length !== 4 ||
+      !Array.isArray(body?.answers) || body.answers.length !== 8
+    ) {
       return new Response(JSON.stringify({ error: "Invalid diagnostic payload" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+        status: 400, headers: { ...responseHeaders, "Content-Type": "application/json" }
       });
     }
 
     const result: Record<string, unknown> = {};
     result.database = await persistDiagnostic(body);
 
-    try { result.rd = await sendToRD(body); }
-    catch (e) { result.rd = { ok: false, error: String(e) }; }
+    result.rd = await sendToRD(body);
 
     try { result.email = await sendEmail(body); }
     catch (e) { result.email = { ok: false, error: String(e) }; }
 
     return new Response(JSON.stringify({ ok: true, ...result }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }
+            status: 200, headers: { ...responseHeaders, "Content-Type": "application/json" }
     });
   } catch (e) {
     return new Response(JSON.stringify({ ok: false, error: String(e) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      status: 500, headers: { ...responseHeaders, "Content-Type": "application/json" }
     });
   }
 });
