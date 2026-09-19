@@ -2,6 +2,8 @@
 
 Aplicação online do Diagnóstico de Manutenção.
 
+O link público inclui metadados Open Graph e uma imagem social de 1200 × 630 px para gerar uma prévia profissional no WhatsApp, LinkedIn e demais aplicativos compatíveis.
+
 ## Fluxo
 
 1. Visitante responde 8 perguntas.
@@ -75,6 +77,47 @@ Crie um fluxo de Automação de Marketing com entrada pela conversão `quiz-diag
 ## PDF
 
 O botão **Salvar resultado em PDF** chama a impressão nativa do navegador com uma folha limpa, sem os controles da interface. No celular, o usuário pode salvar/compartilhar como PDF usando as opções do sistema.
+
+## Modo offline para totem
+
+Abra a aplicação com `?kiosk=1`:
+
+```text
+https://falko1505.github.io/diagnostico-manutencao-infotec-rog2026/?kiosk=1
+```
+
+Na primeira abertura, mantenha o equipamento conectado para o navegador instalar o aplicativo e armazenar os arquivos essenciais. Depois disso:
+
+- as perguntas, o cálculo e a tela de resultado funcionam sem internet;
+- cada diagnóstico é salvo no IndexedDB do navegador antes de qualquer tentativa de envio;
+- registros enviados continuam guardados como backup local;
+- registros pendentes são sincronizados ao abrir a aplicação, ao recuperar a conexão e a cada 30 segundos;
+- o resultado é limpo automaticamente após 60 segundos no modo totem;
+- o botão inicial tenta colocar o navegador em tela cheia;
+- a instalação como PWA abre diretamente em modo de tela cheia.
+
+O e-mail e a conversão no RD Station dependem de internet. Se o visitante concluir offline, ambos são enviados automaticamente quando o totem voltar a ficar online.
+
+### Painel de backup local
+
+No modo totem, pressione `Ctrl + Shift + B` ou abra `backup.html`. O painel permite:
+
+- conferir totais sincronizados e pendentes;
+- forçar uma nova sincronização;
+- exportar todos os registros em CSV;
+- exportar o backup técnico completo em JSON.
+
+O backup pertence ao perfil do navegador daquele equipamento. Não use modo anônimo e não limpe os dados do site durante o evento. Ao final de cada dia, exporte CSV e JSON para um dispositivo externo controlado pela equipe responsável.
+
+### Instalação recomendada
+
+1. Use um perfil dedicado do Chrome ou Edge no equipamento do evento.
+2. Abra o endereço com `?kiosk=1` enquanto houver internet.
+3. Instale o aplicativo pelo menu do navegador ou crie um atalho que abra como janela.
+4. Faça um teste online e depois um teste com a rede desligada.
+5. Abra o painel de backup, confirme o registro pendente, religue a rede e sincronize.
+
+O Service Worker nunca intercepta os envios `POST`; secrets e credenciais continuam somente no backend.
 
 ## Segurança
 
