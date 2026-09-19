@@ -64,9 +64,14 @@ const PROFILES = [
 ];
 
 const app=document.getElementById("app");
+const KIOSK_MODE=new URLSearchParams(location.search).get("kiosk")==="1";
 let step=-1;
 let answers=[];
 let lead=null;
+let syncInProgress=false;
+let resetTimer=null;
+
+document.body.classList.toggle("kiosk-mode",KIOSK_MODE);
 
 function esc(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
 function uid(){return crypto.randomUUID ? crypto.randomUUID() : "diag-"+Date.now()+"-"+Math.random().toString(16).slice(2)}
@@ -81,10 +86,10 @@ function getDims(){
 function toPayload(){
   const total=totalScore(), profile=getProfile(total), dims=getDims();
   return {
-    version:"online-v1",
+    version:"offline-v2",
     diagnostic_id:lead?.diagnostic_id,
     created_at:lead?.created_at,
-    source:"online",
+    source:KIOSK_MODE?"totem":"online",
     lead,
     total_score:total,
     maturity_pct:Math.round(total/24*100),
@@ -114,14 +119,23 @@ function resultUrl(payload){
   const token=resultToken(payload);
   return new URL("result.html#"+token, location.href).toString();
 }
-function queuePayload(payload){
+async function queuePayload(payload){
+  if(window.InfotecStore){
+    await window.InfotecStore.putPayload(payload,"pending");
+    return;
+  }
   try{
     const q=JSON.parse(localStorage.getItem("infotec_pending")||"[]");
     if(!q.some(x=>x.diagnostic_id===payload.diagnostic_id)) q.push(payload);
     localStorage.setItem("infotec_pending",JSON.stringify(q));
   }catch(e){}
 }
-function removeQueued(id){
+async function markQueuedAsSynced(id,payload){
+  if(window.InfotecStore){
+    if(payload?.source==="totem")await window.InfotecStore.markSynced(id);
+    else await window.InfotecStore.removeRecord(id);
+    return;
+  }
   try{
     const q=JSON.parse(localStorage.getItem("infotec_pending")||"[]").filter(x=>x.diagnostic_id!==id);
     localStorage.setItem("infotec_pending",JSON.stringify(q));
@@ -133,21 +147,55 @@ async function sendPayload(payload){
   const r=await fetch(endpoint,{
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({...payload,result_url:resultUrl(payload)})
+    body:JSON.stringify({...payload,result_url:payload.result_url||resultUrl(payload)})
   });
   if(!r.ok) throw new Error("Falha no envio");
   return r.json().catch(()=>({ok:true}));
 }
 async function syncPending(){
+  if(syncInProgress||!navigator.onLine)return;
+  syncInProgress=true;
+  updateConnectionStatus();
   let q=[];
-  try{q=JSON.parse(localStorage.getItem("infotec_pending")||"[]")}catch(e){}
-  for(const item of q){
-    try{await sendPayload(item);removeQueued(item.diagnostic_id)}catch(e){break}
+  try{
+    if(window.InfotecStore){
+      q=(await window.InfotecStore.listPending()).map(record=>record.payload);
+    }else{
+      q=JSON.parse(localStorage.getItem("infotec_pending")||"[]");
+    }
+    for(const item of q){
+      try{
+        await sendPayload(item);
+        await markQueuedAsSynced(item.diagnostic_id,item);
+      }catch(e){
+        if(window.InfotecStore)await window.InfotecStore.markPending(item.diagnostic_id,e);
+        break;
+      }
+    }
+  }finally{
+    syncInProgress=false;
+    updateConnectionStatus();
   }
 }
+async function updateConnectionStatus(){
+  const status=document.getElementById("connection-status");
+  if(!status)return;
+  let pending=0;
+  try{
+    pending=window.InfotecStore?(await window.InfotecStore.stats()).pending:JSON.parse(localStorage.getItem("infotec_pending")||"[]").length;
+  }catch(e){}
+  status.className=`connection-status ${navigator.onLine?"online":"offline"}`;
+  status.textContent=syncInProgress
+    ?"Sincronizando…"
+    :navigator.onLine
+      ?(pending?`${pending} diagnóstico${pending===1?"":"s"} aguardando envio`:"Online · backup local ativo")
+      :`Offline · ${pending} diagnóstico${pending===1?"":"s"} salvo${pending===1?"":"s"} no totem`;
+}
 window.addEventListener("online",syncPending);
+window.addEventListener("offline",updateConnectionStatus);
 
 function renderIntro(){
+  clearTimeout(resetTimer);
   app.innerHTML=`
     <div class="eyebrow">Diagnóstico gratuito · 3 minutos</div>
     <h1>Receba seu diagnóstico de Manutenção</h1>
@@ -158,7 +206,10 @@ function renderIntro(){
       <div><b>+600</b><small>projetos realizados</small></div>
     </div>
     <button class="btn" id="start">Começar diagnóstico</button>`;
-  document.getElementById("start").onclick=()=>{step=0;renderQuestion(step)};
+  document.getElementById("start").onclick=()=>{
+    if(KIOSK_MODE&&!document.fullscreenElement)document.documentElement.requestFullscreen?.().catch(()=>{});
+    step=0;renderQuestion(step);
+  };
 }
 function renderQuestion(i){
   const q=QUESTIONS[i];
@@ -223,13 +274,16 @@ async function submitLead(){
     consent:true
   };
   const payload=toPayload();
-  queuePayload(payload);
+  payload.result_url=resultUrl(payload);
+  try{await queuePayload(payload)}catch(e){}
   let sent=false;
   try{
     await sendPayload(payload);
-    removeQueued(payload.diagnostic_id);
+    await markQueuedAsSynced(payload.diagnostic_id,payload);
     sent=true;
-  }catch(e){}
+  }catch(e){
+    if(window.InfotecStore)try{await window.InfotecStore.markPending(payload.diagnostic_id,e)}catch(ignore){}
+  }
   try{sessionStorage.setItem("infotec_current_result",JSON.stringify(payload))}catch(e){}
   renderResult(sent);
 }
@@ -244,22 +298,53 @@ function renderResult(sent){
     </div>
     ${dims.map(d=>`<div class="dim ${d.pct<50?"low":""}"><div class="dhead"><span>${d.name}</span><span>${d.pct}%</span></div><div class="dbar"><div style="width:${d.pct}%"></div></div></div>`).join("")}
     <div class="reco">${profile.text}</div>
-    <div class="${sent?"status-box":"error-box"}">${sent
+    <div class="${sent?"status-box":"offline-box"}">${sent
       ? "Pronto: seu diagnóstico foi registrado e o envio por e-mail foi solicitado."
       : ((window.INFOTEC_CONFIG&&window.INFOTEC_CONFIG.submitEndpoint)
-          ? "Seu diagnóstico está salvo neste aparelho e será sincronizado automaticamente assim que a conexão estiver disponível."
+          ? "Seu diagnóstico está salvo neste totem. O RD Station e o e-mail serão atualizados automaticamente quando a conexão voltar."
           : "Seu resultado foi calculado. A integração com RD Station e o envio por e-mail ainda estão em configuração nesta versão de teste.")}</div>
-    <p class="lead" style="margin-bottom:16px">Você também pode abrir seu resultado completo agora e salvá-lo em PDF.</p>
-    <a class="btn" href="${url}">Abrir resultado completo</a>
-    <div class="btn-row">
-      <button class="btn outline" id="share">Compartilhar</button>
+    <p class="lead" style="margin-bottom:16px">${KIOSK_MODE?"Você pode imprimir este resumo antes de liberar o totem para a próxima pessoa.":"Você também pode abrir seu resultado completo agora e salvá-lo em PDF."}</p>
+    ${KIOSK_MODE?'<button class="btn" id="print-summary">Imprimir resultado</button>':`<a class="btn" href="${url}">Abrir resultado completo</a>`}
+    <div class="btn-row ${KIOSK_MODE?"kiosk-actions":""}">
+      ${KIOSK_MODE?"":'<button class="btn outline" id="share">Compartilhar</button>'}
       <button class="btn secondary" id="restart">Fazer novo diagnóstico</button>
-    </div>`;
-  document.getElementById("restart").onclick=()=>{step=-1;answers=[];lead=null;renderIntro()};
-  document.getElementById("share").onclick=async()=>{
+    </div>
+    ${KIOSK_MODE?'<p class="kiosk-reset" id="kiosk-reset">A tela será limpa automaticamente em 60 segundos.</p>':""}`;
+  document.getElementById("restart").onclick=restartDiagnostic;
+  const printSummary=document.getElementById("print-summary");
+  if(printSummary)printSummary.onclick=()=>window.print();
+  const shareButton=document.getElementById("share");
+  if(shareButton)shareButton.onclick=async()=>{
     if(navigator.share){try{await navigator.share({title:"Meu Diagnóstico de Manutenção",text:"Acesse meu resultado do Diagnóstico de Manutenção da Infotec Brasil.",url})}catch(e){}}
     else{await navigator.clipboard?.writeText(url);alert("Link copiado.")};
   };
+  if(KIOSK_MODE){
+    let remaining=60;
+    const label=document.getElementById("kiosk-reset");
+    const tick=()=>{
+      remaining-=1;
+      if(remaining<=0){restartDiagnostic();return}
+      if(label)label.textContent=`A tela será limpa automaticamente em ${remaining} segundos.`;
+      resetTimer=setTimeout(tick,1000);
+    };
+    resetTimer=setTimeout(tick,1000);
+  }
 }
-syncPending();
+function restartDiagnostic(){
+  clearTimeout(resetTimer);
+  step=-1;answers=[];lead=null;
+  try{sessionStorage.removeItem("infotec_current_result")}catch(e){}
+  renderIntro();
+}
+
+document.addEventListener("keydown",event=>{
+  if(KIOSK_MODE&&event.ctrlKey&&event.shiftKey&&event.key.toLowerCase()==="b")location.href="./backup.html";
+});
+
+(async()=>{
+  if(window.InfotecStore)try{await window.InfotecStore.importLegacyQueue()}catch(e){}
+  updateConnectionStatus();
+  syncPending();
+  setInterval(syncPending,30000);
+})();
 renderIntro();
