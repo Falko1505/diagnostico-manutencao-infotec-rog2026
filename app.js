@@ -101,7 +101,7 @@ function toPayload(){
 }
 function resultToken(payload){
   const compact={
-    v:1,id:payload.diagnostic_id,n:payload.lead.name,
+    v:1,id:payload.diagnostic_id,n:(payload.lead.name||"").split(" ")[0],
     t:payload.total_score,p:payload.maturity_pct,
     a:answers.map(a=>a.score)
   };
@@ -112,7 +112,7 @@ function resultToken(payload){
 }
 function resultUrl(payload){
   const token=resultToken(payload);
-  return new URL("/result.html#"+token,location.origin).toString();
+  return new URL("result.html#"+token, location.href).toString();
 }
 function queuePayload(payload){
   try{
