@@ -39,7 +39,7 @@ function render(data){
       <button class="btn" id="pdf">Salvar resultado em PDF</button>
       <div class="btn-row">
         <button class="btn outline" id="share">Compartilhar</button>
-        <a class="btn secondary" href="/">Fazer meu diagnóstico</a>
+        <a class="btn secondary" href="./index.html">Fazer meu diagnóstico</a>
       </div>
       <p class="microcopy">No iPhone/Android, “Salvar em PDF” abre a impressão do sistema. Escolha “Salvar como PDF” ou “Compartilhar” para guardar o arquivo no celular.</p>
     </div>`;
@@ -51,5 +51,5 @@ function render(data){
 }
 const data=decodeToken();
 if(!data || !Array.isArray(data.a) || data.a.length!==8 || typeof data.t!=="number"){
-  root.innerHTML='<div class="eyebrow">Resultado indisponível</div><h2>Não foi possível abrir este diagnóstico.</h2><p class="lead">O link pode estar incompleto. Faça um novo diagnóstico ou solicite um novo acesso ao resultado.</p><a class="btn" href="/">Fazer diagnóstico</a>';
+  root.innerHTML='<div class="eyebrow">Resultado indisponível</div><h2>Não foi possível abrir este diagnóstico.</h2><p class="lead">O link pode estar incompleto. Faça um novo diagnóstico ou solicite um novo acesso ao resultado.</p><a class="btn" href="./index.html">Fazer diagnóstico</a>';
 }else render(data);
