@@ -1,0 +1,21 @@
+{
+  "name": "Diagnóstico de Manutenção — Infotec Brasil",
+  "short_name": "Diagnóstico Infotec",
+  "description": "Diagnóstico de Maturidade em Manutenção para o totem da ROG.e 2026.",
+  "lang": "pt-BR",
+  "id": "./?kiosk=1",
+  "start_url": "./?kiosk=1",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#f4f6fa",
+  "theme_color": "#003082",
+  "icons": [
+    {
+      "src": "./assets/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
